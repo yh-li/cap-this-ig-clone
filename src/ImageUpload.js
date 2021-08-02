@@ -3,6 +3,7 @@ import firebase from "firebase";
 import { storage, db } from "./firebase";
 import "./ImageUpload.css";
 import { Input, Button } from "@material-ui/core";
+import { v4 as uuidv4 } from "uuid";
 
 const ImageUpload = ({ username }) => {
   const [image, setImage] = useState(null);
@@ -17,43 +18,59 @@ const ImageUpload = ({ username }) => {
   };
 
   const handleUpload = () => {
-    const uploadTask = storage.ref(`images/${image.name}`).put(image);
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        // progress function ...
-        const progress = Math.round(
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-        );
-        setProgress(progress);
-      },
-      (error) => {
-        // Error function ...
-        console.log(error);
-      },
-      () => {
-        // complete function ...
-        storage
-          .ref("images")
-          .child(image.name)
-          .getDownloadURL()
-          .then((url) => {
-            setUrl(url);
+    //get a reference, access the storage in firebase
+    //put image put the image you just selected to the
+    if (image) {
+      //build a unique name
+      const imageFileName = uuidv4().concat("-", image.name);
+      const uploadTask = storage.ref(`images/${imageFileName}`).put(image);
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          // progress function ...
+          const progress = Math.round(
+            //a percentage upload progress
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+            //for visualizing the upload progress
+          );
+          setProgress(progress);
+        },
+        (error) => {
+          // Error function ...
+          console.log(error);
+        },
+        () => {
+          // complete function ...
+          storage
+            .ref("images") //go to the image folder
+            .child(imageFileName) //go to the image.name file
+            .getDownloadURL() //and then get the downloading file
+            .then((url) => {
+              setUrl(url);
 
-            // post image inside db
-            db.collection("posts").add({
-              imageUrl: url,
-              caption: caption,
-              username: username,
-              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+              // post image inside db
+              db.collection("posts").add({
+                imageUrl: url,
+                caption: caption,
+                username: username,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+              });
+
+              setProgress(0);
+              setCaption("");
+              setImage(null);
             });
-
-            setProgress(0);
-            setCaption("");
-            setImage(null);
-          });
-      }
-    );
+        }
+      );
+    } else if (caption.trim() !== "") {
+      db.collection("posts").add({
+        caption: caption,
+        username: username,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      setCaption("");
+    } else {
+    }
   };
 
   return (

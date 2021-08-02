@@ -1,0 +1,8 @@
+.comment {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.delete-comment {
+  size: small;
+}

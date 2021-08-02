@@ -1,14 +1,17 @@
 .post {
   border: 1px solid lightgray;
-  width: fit-content;
-  margin-bottom: 45px;
+  width: 50vw;
+  margin: 0 auto;
+  margin-bottom: 2px;
   background-color: #ffffff;
-  max-width: 500px;
+  max-width: 700px;
+  min-width: 200px;
 }
 
 .post__image {
   width: 100%;
   object-fit: contain;
+  border-bottom: 1px solid lightgray;
 }
 
 .post__avatar {
@@ -18,18 +21,24 @@
 .post__header {
   display: flex;
   align-items: center;
-  text-align: left;
+  text-align: center;
   padding: 10px;
   border-bottom: 1px solid lightgray;
+  justify-content: space-between;
+}
+.post__meta {
+  display: flex;
+  align-items: center;
 }
 
 .post__text {
   padding: 10px;
+  padding-bottom: 0px;
   text-align: left;
 }
 
 .post__comments {
-  padding: 10px;
+  padding: 0 10px 10px;
 }
 
 .post__caption {
@@ -38,20 +47,28 @@
 
 .post__commentBox {
   display: flex;
-  margin-top: 10px;
+  object-fit: contain;
+  align-items: center;
+  border-top: 1px solid lightgray;
 }
 
 .post__input {
   flex: 1;
   border: none;
   padding: 10px;
-  border-top: 1px solid lightgray;
+
+  object-fit: contain;
+  align-items: center;
 }
 
 .post__button {
   border: none;
-  border-top: 1px solid lightgray;
+
   color: #6082a3;
   background-color: transparent;
   flex: 0;
+}
+.post__button__row {
+  display: flex;
+  justify-content: space-between;
 }
