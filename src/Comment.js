@@ -4,14 +4,14 @@ import { db } from "./firebase";
 import DeleteIcon from "@material-ui/icons/Delete";
 import { IconButton } from "@material-ui/core";
 
-function Comment({ commentId, postId, curUser, username, text }) {
+function Comment({ commentId, postId, curUserName, username, text }) {
   return (
     <div className="comment" key="comment.id">
       <div>
         <b>{username}</b> {text}
       </div>
 
-      {curUser && curUser?.displayName === username ? (
+      {curUserName === username ? (
         <IconButton
           color="primary"
           aria-label="upload picture"

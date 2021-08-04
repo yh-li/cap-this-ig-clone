@@ -8,15 +8,17 @@ import FavoriteIcon from "@material-ui/icons/Favorite";
 import ChatBubbleOutlineIcon from "@material-ui/icons/ChatBubbleOutline";
 import ShareIcon from "@material-ui/icons/Share";
 import BookmarkBorderIcon from "@material-ui/icons/BookmarkBorder";
-import BookmarkIcon from "@material-ui/icons/Bookmark";
 import { IconButton } from "@material-ui/core";
 import Comment from "./Comment";
+import { Link } from "react-router-dom";
 
 const Post = forwardRef(
-  ({ user, username, postId, imageUrl, caption, curUser }, ref) => {
+  ({ username, postId, imageUrl, caption, curUserName }, ref) => {
     const [comments, setComments] = useState([]);
     const [comment, setComment] = useState("");
     const [avatar, setAvatar] = useState("/static/images/avatar/1.jpg");
+    const [liked, setLiked] = useState();
+    const [likedBy, setLikedBy] = useState();
     useEffect(() => {
       db.collection("avatars")
         .doc(username)
@@ -29,9 +31,30 @@ const Post = forwardRef(
             console.log("No avatar");
           }
         });
+      db.collection("posts")
+        .doc(postId)
+        .collection("likes")
+        .doc(curUserName)
+        .get()
+        .then((doc) => {
+          if (doc.exists) {
+            //console.log(doc.data());
+            setLiked(true);
+          } else {
+            //console.log("No likes from current user");
+            setLiked(false);
+          }
+        });
+      db.collection("posts")
+        .doc(postId)
+        .collection("likes")
+        .onSnapshot((querySnapshot) => {
+          setLikedBy(querySnapshot.docs.length);
+        });
 
       //console.log(avatar);
     }, []);
+
     useEffect(() => {
       let unsubscribe;
       if (postId) {
@@ -46,6 +69,10 @@ const Post = forwardRef(
                 comment: doc.data(),
               }))
             );
+            // snapshot.docs.map((doc) => {
+            //   console.log("Comment:");
+            //   console.log(doc.data());
+            // });
           }); //this on snapchat means anytime there's a new comment added
         //there's the listener to this specific post
       }
@@ -60,27 +87,67 @@ const Post = forwardRef(
 
       db.collection("posts").doc(postId).collection("comments").add({
         text: comment,
-        username: user.displayName,
+        username: curUserName,
       });
       setComment("");
     };
 
+    const handleLike = (e) => {
+      e.preventDefault();
+      if (liked != null) {
+        if (liked) {
+          db.collection("posts")
+            .doc(postId)
+            .collection("likes")
+            .doc(curUserName)
+            .delete();
+          setLiked(false);
+        } else {
+          db.collection("posts")
+            .doc(postId)
+            .collection("likes")
+            .doc(curUserName)
+            .set({ liked: true });
+          setLiked(true);
+        }
+      }
+    };
     return (
       <div className="post" ref={ref}>
         <div className="post__header">
           <div className="post__meta">
-            <Avatar className="post__avatar" alt={username} src={avatar} />
-            <h3>{username}</h3>
+            <Link to={`/users/${username}`}>
+              <Avatar className="post__avatar" alt={username} src={avatar} />
+            </Link>
+            <Link
+              to={`/users/${username}`}
+              style={{ color: "inherit", textDecoration: "none" }}
+            >
+              <h3>{username}</h3>
+            </Link>
           </div>
           <div className="post__option">
-            {curUser && curUser?.displayName === username ? (
+            {curUserName && curUserName === username ? (
               <IconButton
                 color="primary"
                 aria-label="upload picture"
                 component="span"
                 className="post__delete"
                 onClick={() => {
+                  db.collection("posts")
+                    .doc(postId)
+                    .collection("comments")
+                    .onSnapshot((snapshot) => {
+                      snapshot.docs.map((doc) => {
+                        doc.ref.delete();
+                      });
+                    });
                   db.collection("posts").doc(postId).delete();
+                  db.collection("users")
+                    .doc(username)
+                    .collection("postIds")
+                    .doc(postId)
+                    .delete();
                 }}
               >
                 <DeleteIcon style={{ fontSize: 20 }} className="delete-icon" />
@@ -101,17 +168,23 @@ const Post = forwardRef(
         )}
         {caption ? (
           <h4 className="post__text">
-            {username} <span className="post__caption">{caption}</span>
+            <Link
+              to={`/users/${username}`}
+              style={{ color: "inherit", textDecoration: "none" }}
+            >
+              {username}
+            </Link>{" "}
+            <span className="post__caption">{caption}</span>
           </h4>
         ) : (
           <></>
         )}
         <div className="post__button__row">
           <div className="post__button__row__left">
-            <IconButton>
-              <FavoriteBorderIcon />
+            <IconButton onClick={handleLike}>
+              {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
             </IconButton>
-            <IconButton>
+            <IconButton href={`/posts/${postId}`}>
               <ChatBubbleOutlineIcon />
             </IconButton>
             <IconButton>
@@ -126,22 +199,26 @@ const Post = forwardRef(
         </div>
         <div className="post__comments">
           {comments.map(({ id, comment }) => {
-            console.log(id);
-            console.log(comment.username);
+            console.log("Comment id ", id);
+            console.log("Commnet made by ", comment.username);
             return (
               <Comment
                 key={id}
                 commentId={id}
                 postId={postId}
-                curUser={curUser}
+                curUserName={curUserName}
                 username={comment.username}
                 text={comment.text}
               />
             );
           })}
         </div>
-
-        {user && (
+        {likedBy > 0 ? (
+          <div className="post__liked_by">Liked by {likedBy}</div>
+        ) : (
+          <></>
+        )}
+        {curUserName && (
           <form className="post__commentBox">
             <input
               className="post__input"

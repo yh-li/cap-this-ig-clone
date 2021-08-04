@@ -49,12 +49,22 @@ const ImageUpload = ({ username }) => {
               setUrl(url);
 
               // post image inside db
-              db.collection("posts").add({
-                imageUrl: url,
-                caption: caption,
-                username: username,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-              });
+              db.collection("posts")
+                .add({
+                  imageUrl: url,
+                  caption: caption,
+                  username: username,
+                  timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                })
+                .then((doc) => {
+                  db.collection("users")
+                    .doc(username)
+                    .collection("postIds")
+                    .doc(doc.id)
+                    .set({
+                      postId: doc.id,
+                    });
+                });
 
               setProgress(0);
               setCaption("");
@@ -63,11 +73,21 @@ const ImageUpload = ({ username }) => {
         }
       );
     } else if (caption.trim() !== "") {
-      db.collection("posts").add({
-        caption: caption,
-        username: username,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      db.collection("posts")
+        .add({
+          caption: caption,
+          username: username,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        })
+        .then((doc) => {
+          db.collection("users")
+            .doc(username)
+            .collection("postIds")
+            .doc(doc.id)
+            .set({
+              postId: doc.id,
+            });
+        });
       setCaption("");
     } else {
     }
