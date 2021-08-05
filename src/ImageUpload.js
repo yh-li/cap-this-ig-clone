@@ -5,7 +5,7 @@ import "./ImageUpload.css";
 import { Input, Button } from "@material-ui/core";
 import { v4 as uuidv4 } from "uuid";
 
-const ImageUpload = ({ username }) => {
+const ImageUpload = ({ username, setModalOpen }) => {
   const [image, setImage] = useState(null);
   const [url, setUrl] = useState("");
   const [progress, setProgress] = useState(0);
@@ -90,6 +90,9 @@ const ImageUpload = ({ username }) => {
         });
       setCaption("");
     } else {
+    }
+    if (setModalOpen) {
+      setModalOpen(false);
     }
   };
 

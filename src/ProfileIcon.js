@@ -9,7 +9,7 @@ import {
 } from "@material-ui/core";
 import firebase from "firebase";
 import { storage, db } from "./firebase";
-function ProfileIcon({ user }) {
+function ProfileIcon({ username }) {
   const [modalStyle] = useState(getModalStyle);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const useStyles = makeStyles((theme) => ({
@@ -38,21 +38,27 @@ function ProfileIcon({ user }) {
   const [avatar, setAvatar] = useState(null);
   const [url, setUrl] = useState("/static/images/avatar/1.jpg");
   const [progress, setProgress] = useState(0);
-  db.collection("avatars")
-    .doc(user.displayName)
-    .collection("avatarUrls")
-    .orderBy("timestamp", "desc")
-    .limit(1)
-    .get()
-    .then((querySnapshot) => {
-      if (!querySnapshot.empty) {
-        querySnapshot.docs.map((doc) => {
-          setUrl(doc.data().avatarUrl);
-        });
-      } else {
-        console.log("No avatar");
-      }
-    });
+  console.log("Avatar rerenders");
+  if (username) {
+    db.collection("avatars")
+      .doc(username)
+      .collection("avatarUrls")
+      .orderBy("timestamp", "desc")
+      .limit(1)
+      .get()
+      .then((querySnapshot) => {
+        if (!querySnapshot.empty) {
+          querySnapshot.docs.map((doc) => {
+            setUrl(doc.data().avatarUrl);
+          });
+        } else {
+          console.log("No avatar from Profile Icon");
+        }
+      })
+      .catch((err) => {
+        setUrl("/");
+      });
+  }
   const handleChange = (e) => {
     if (e.target.files[0]) {
       setAvatar(e.target.files[0]);
@@ -90,7 +96,7 @@ function ProfileIcon({ user }) {
               console.log(url);
               // post avatar inside db
               db.collection("avatars")
-                .doc(user.displayName)
+                .doc(username)
                 .collection("avatarUrls")
                 .add({
                   avatarUrl: url,
@@ -112,11 +118,7 @@ function ProfileIcon({ user }) {
           setAvatarOpen(true);
         }}
       >
-        <Avatar
-          className="app__headerAvatar"
-          alt={user.displayName}
-          src={url}
-        />
+        <Avatar className="app__headerAvatar" alt={username} src={url} />
       </IconButton>
       <Modal open={avatarOpen} onClose={() => setAvatarOpen(false)}>
         <div style={modalStyle} className={classes.paper}>

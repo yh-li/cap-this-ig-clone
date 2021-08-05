@@ -10,7 +10,9 @@ import {
   IconButton,
 } from "@material-ui/core";
 import ProfileIcon from "./ProfileIcon";
+import AddAPhotoIcon from "@material-ui/icons/AddAPhoto";
 import { Link } from "react-router-dom";
+import ImageUpload from "./ImageUpload";
 function getModalStyle() {
   const top = 50;
   const left = 50;
@@ -34,15 +36,16 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(2, 4, 3),
   },
 }));
-function Header({ setHomeUserName }) {
+function Header({ setHomeUserName, loginOpen, setLoginOpen }) {
   const classes = useStyles();
   const [modalStyle] = useState(getModalStyle);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(loginOpen);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [user, setUser] = useState(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((authUser) => {
       //listen for any single time any authentication changes
@@ -80,6 +83,7 @@ function Header({ setHomeUserName }) {
       .catch((error) => alert(error.message));
 
     setOpen(false);
+    setLoginOpen(false);
   };
 
   const handleRegister = (e) => {
@@ -104,9 +108,21 @@ function Header({ setHomeUserName }) {
 
     setRegisterOpen(false);
   };
+  const handleUpload = (e) => {
+    e.preventDefault();
+  };
+  useEffect(() => {
+    console.log("Header's open has been reset to ", open);
+  }, [open]);
   return (
     <div className="header">
-      <Modal open={open} onClose={() => setOpen(false)}>
+      <Modal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setLoginOpen(false);
+        }}
+      >
         <div style={modalStyle} className={classes.paper}>
           <form className="home__login">
             <center>
@@ -158,13 +174,34 @@ function Header({ setHomeUserName }) {
           </form>
         </div>
       </Modal>
+      <Modal
+        open={uploadOpen}
+        onClose={() => {
+          setUploadOpen(false);
+        }}
+      >
+        <div style={modalStyle} className={classes.paper}>
+          upload something. please. {user?.displayName}
+          <ImageUpload
+            username={user?.displayName}
+            setModalOpen={setUploadOpen}
+          />
+        </div>
+      </Modal>
       <div className="home__header">
         <Link to="/">
           {" "}
-          <img className="home__headerImage" src="capThisLogo.png" alt="" />
+          <img className="home__headerImage" src="/capThisLogo.png" alt="" />
         </Link>
         {user?.displayName ? (
           <div className="home__headerRight">
+            <IconButton
+              onClick={() => {
+                setUploadOpen(true);
+              }}
+            >
+              <AddAPhotoIcon />
+            </IconButton>
             <Button
               onClick={() => {
                 auth.signOut();
@@ -173,11 +210,18 @@ function Header({ setHomeUserName }) {
             >
               Logout
             </Button>
-            <ProfileIcon user={user} />
+            <ProfileIcon username={user.displayName} />
           </div>
         ) : (
           <form className="home__loginHome">
-            <Button onClick={() => setOpen(true)}>Login</Button>
+            <Button
+              onClick={() => {
+                setOpen(true);
+                setLoginOpen(true);
+              }}
+            >
+              Login
+            </Button>
             <Button onClick={() => setRegisterOpen(true)}>Sign Up</Button>
           </form>
         )}

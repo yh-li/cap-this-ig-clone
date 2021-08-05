@@ -2,6 +2,7 @@ import React, { useState, useEffect, forwardRef } from "react";
 import "./Post.css";
 import Avatar from "@material-ui/core/Avatar";
 import { db } from "./firebase";
+import firebase from "firebase";
 import DeleteIcon from "@material-ui/icons/Delete";
 import FavoriteBorderIcon from "@material-ui/icons/FavoriteBorder";
 import FavoriteIcon from "@material-ui/icons/Favorite";
@@ -10,16 +11,30 @@ import ShareIcon from "@material-ui/icons/Share";
 import BookmarkBorderIcon from "@material-ui/icons/BookmarkBorder";
 import { IconButton } from "@material-ui/core";
 import Comment from "./Comment";
-import { Link } from "react-router-dom";
+import { Link, useHistory } from "react-router-dom";
+import Moment from "react-moment";
 
 const Post = forwardRef(
-  ({ username, postId, imageUrl, caption, curUserName }, ref) => {
+  (
+    {
+      username,
+      postId,
+      imageUrl,
+      caption,
+      curUserName,
+      setLoginOpen,
+      timestamp,
+    },
+    ref
+  ) => {
     const [comments, setComments] = useState([]);
     const [comment, setComment] = useState("");
     const [avatar, setAvatar] = useState("/static/images/avatar/1.jpg");
     const [liked, setLiked] = useState();
     const [likedBy, setLikedBy] = useState();
+    const history = useHistory();
     useEffect(() => {
+      console.log("Post Reloaded");
       db.collection("avatars")
         .doc(username)
         .collection("avatarUrls")
@@ -28,34 +43,35 @@ const Post = forwardRef(
           if (!querySnapshot.empty) {
             setAvatar(querySnapshot.docs[0].data().avatarUrl);
           } else {
-            console.log("No avatar");
+            console.log("No avatar and this is from Post!!!!!");
           }
         });
-      db.collection("posts")
-        .doc(postId)
-        .collection("likes")
-        .doc(curUserName)
-        .get()
-        .then((doc) => {
-          if (doc.exists) {
-            //console.log(doc.data());
-            setLiked(true);
-          } else {
-            //console.log("No likes from current user");
-            setLiked(false);
-          }
-        });
+      if (curUserName) {
+        db.collection("posts")
+          .doc(postId)
+          .collection("likes")
+          .doc(curUserName)
+          .get()
+          .then((doc) => {
+            if (doc.exists) {
+              setLiked(true);
+            } else {
+              setLiked(false);
+            }
+          });
+      } else {
+        setLiked(false);
+      }
       db.collection("posts")
         .doc(postId)
         .collection("likes")
         .onSnapshot((querySnapshot) => {
           setLikedBy(querySnapshot.docs.length);
         });
-
-      //console.log(avatar);
     }, []);
 
     useEffect(() => {
+      console.log("Post ID changed");
       let unsubscribe;
       if (postId) {
         unsubscribe = db
@@ -63,16 +79,28 @@ const Post = forwardRef(
           .doc(postId) //going to that specific postId document
           .collection("comments") //going inside its comments collection
           .onSnapshot((snapshot) => {
-            setComments(
-              snapshot.docs.map((doc) => ({
-                id: doc.id,
-                comment: doc.data(),
-              }))
-            );
-            // snapshot.docs.map((doc) => {
-            //   console.log("Comment:");
-            //   console.log(doc.data());
-            // });
+            const orderedComments = [];
+            snapshot.docs.map((doc) => {
+              orderedComments.push({ id: doc.id, comment: doc.data() });
+            });
+            orderedComments.sort((comment1, comment2) => {
+              if (comment2.comment.likesNo !== comment1.comment.likesNo) {
+                return comment2.comment.likesNo - comment1.comment.likesNo;
+              } else if (
+                comment1.comment.timestamp &&
+                comment2.comment.timestamp
+              ) {
+                return (
+                  comment1.comment.timestamp.seconds -
+                  comment2.comment.timestamp.seconds
+                );
+              } else if (comment1.comment.timestamp) {
+                return -1;
+              } else {
+                return 1;
+              }
+            });
+            setComments(orderedComments);
           }); //this on snapchat means anytime there's a new comment added
         //there's the listener to this specific post
       }
@@ -88,6 +116,8 @@ const Post = forwardRef(
       db.collection("posts").doc(postId).collection("comments").add({
         text: comment,
         username: curUserName,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        likesNo: 0,
       });
       setComment("");
     };
@@ -102,16 +132,45 @@ const Post = forwardRef(
             .doc(curUserName)
             .delete();
           setLiked(false);
-        } else {
+        } else if (curUserName) {
           db.collection("posts")
             .doc(postId)
             .collection("likes")
             .doc(curUserName)
             .set({ liked: true });
           setLiked(true);
+        } else {
+          setLoginOpen(true);
         }
       }
     };
+    const handleComment = (e) => {
+      e.preventDefault();
+      if (curUserName) {
+        history.push(`/posts/${postId}`);
+      } else {
+        setLoginOpen(true);
+      }
+    };
+    useEffect(() => {
+      //liked needs to be reset
+      if (curUserName) {
+        db.collection("posts")
+          .doc(postId)
+          .collection("likes")
+          .doc(curUserName)
+          .get()
+          .then((doc) => {
+            if (doc.exists) {
+              setLiked(true);
+            } else {
+              setLiked(false);
+            }
+          });
+      } else {
+        setLiked(false);
+      }
+    }, [curUserName]);
     return (
       <div className="post" ref={ref}>
         <div className="post__header">
@@ -147,7 +206,15 @@ const Post = forwardRef(
                     .doc(username)
                     .collection("postIds")
                     .doc(postId)
-                    .delete();
+                    .delete()
+                    .then(() => {
+                      console.log(
+                        "Deletion Done with postId ",
+                        postId,
+                        " from user ",
+                        username
+                      );
+                    });
                 }}
               >
                 <DeleteIcon style={{ fontSize: 20 }} className="delete-icon" />
@@ -184,7 +251,7 @@ const Post = forwardRef(
             <IconButton onClick={handleLike}>
               {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
             </IconButton>
-            <IconButton href={`/posts/${postId}`}>
+            <IconButton onClick={handleComment}>
               <ChatBubbleOutlineIcon />
             </IconButton>
             <IconButton>
@@ -197,10 +264,13 @@ const Post = forwardRef(
             </IconButton>
           </div>
         </div>
+        {likedBy > 0 ? (
+          <div className="post__liked_by">Liked by {likedBy}</div>
+        ) : (
+          <></>
+        )}
         <div className="post__comments">
           {comments.map(({ id, comment }) => {
-            console.log("Comment id ", id);
-            console.log("Commnet made by ", comment.username);
             return (
               <Comment
                 key={id}
@@ -209,12 +279,17 @@ const Post = forwardRef(
                 curUserName={curUserName}
                 username={comment.username}
                 text={comment.text}
+                setLoginOpen={setLoginOpen}
               />
             );
           })}
         </div>
-        {likedBy > 0 ? (
-          <div className="post__liked_by">Liked by {likedBy}</div>
+        {timestamp ? (
+          <div className="post__timestamp">
+            <Moment fromNow unix>
+              {timestamp.seconds}
+            </Moment>
+          </div>
         ) : (
           <></>
         )}

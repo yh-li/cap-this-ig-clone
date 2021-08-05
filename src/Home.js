@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./Home.css";
 import Post from "./Post";
 import Header from "./Header";
-import ImageUpload from "./ImageUpload";
+import PostList from "./PostList";
 import { db, auth } from "./firebase";
 import {
   Button,
@@ -39,17 +39,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Home() {
-  const classes = useStyles();
-  const [modalStyle] = useState(getModalStyle);
-  const [posts, setPosts] = useState([]);
-  const [postIds, setPostIds] = useState([]);
+function Home({ user }) {
+  const [postIds, setPostIds] = useState();
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [open, setOpen] = useState(false);
-  const [avatarOpen, setAvatarOpen] = useState(false);
-  const [registerOpen, setRegisterOpen] = useState(false);
+  const [followingUsers, setFollowingUsers] = useState();
+  const [loginOpen, setLoginOpen] = useState(false);
 
   //useEffect runs a piece of code based on a specific condition
   //if we leave the conditions as blank
@@ -66,38 +60,60 @@ function Home() {
     if (username) {
       db.collection("users")
         .doc(username)
-        .collection("postIds")
+        .collection("followings")
         .onSnapshot((snapshot) => {
-          /*           setPosts(
-            snapshot.docs.map((doc) => ({ id: doc.id, post: doc.data() }))
-          ); */
-          const userPostIds = [];
+          const followingUsernames = [];
           snapshot.forEach((doc) => {
-            userPostIds.push(doc.id);
+            followingUsernames.push(doc.id);
           });
-          setPostIds(userPostIds);
+          followingUsernames.push(username);
+          console.log(followingUsernames);
+          setFollowingUsers(followingUsernames);
         });
     } else {
-      setPostIds([]);
+      setFollowingUsers();
     }
   }, [username]);
-
   useEffect(() => {
-    console.log(postIds);
-    if (postIds.length > 0) {
-      db.collection("posts")
-        .where("__name__", "in", postIds)
+    if (followingUsers && followingUsers.length > 0) {
+      /*       db.collection("posts")
+        .where("username", "in", followingUsers)
         .onSnapshot((snapshot) => {
-          const queryPosts = [];
-
+                    setPosts(
+        snapshot.docs.map((doc) => ({ id: doc.id, post: doc.data() }))
+      ); 
+          console.log("Post list should be changed!");
+          const usersPostIds = [];
           snapshot.forEach((doc) => {
-            queryPosts.push({ id: doc.id, post: doc.data() });
+            usersPostIds.push(doc.id);
           });
-          setPosts(queryPosts);
+          setPostIds(usersPostIds);
+        }); */
+
+      const getPostIds = () => {
+        db.collection("posts").onSnapshot((snapshot) => {
+          const usersPostsIds = [];
+          snapshot.docs.map((doc) => {
+            const postUsername = doc.data().username;
+            if (followingUsers.includes(postUsername)) {
+              usersPostsIds.push(doc.id);
+            }
+          });
+          console.log(usersPostsIds);
+          setPostIds(usersPostsIds);
         });
+      };
+      getPostIds();
+    } else {
+      setPostIds();
+    }
+  }, [followingUsers]);
+  useEffect(() => {
+    console.log("post ids has changed to ", postIds);
+    if (postIds) {
+      console.log(postIds.length);
     }
   }, [postIds]);
-
   /*   const handleLogin = (e) => {
     e.preventDefault();
     auth
@@ -121,7 +137,11 @@ function Home() {
   }; */
   return (
     <div className="home">
-      <Header setHomeUserName={setUsername} />
+      <Header
+        setHomeUserName={setUsername}
+        loginOpen={false}
+        setLoginOpen={() => null}
+      />
       {/* <Modal open={open} onClose={() => setOpen(false)}>
         <div style={modalStyle} className={classes.paper}>
           <form className="home__login">
@@ -207,27 +227,20 @@ function Home() {
       /> */}
       <div className="home__posts">
         <div className="home__postsLeft">
-          <FlipMove>
-            {posts.map(({ id, post }) => {
-              return (
-                <Post
-                  key={id}
-                  postId={id}
-                  username={post.username}
-                  caption={post.caption}
-                  imageUrl={post.imageUrl}
-                  curUserName={username}
-                />
-              );
-            })}
-          </FlipMove>
+          {postIds ? (
+            <PostList
+              postIds={postIds}
+              setLoginOpen={setLoginOpen}
+              curUsername={username}
+            />
+          ) : (
+            <></>
+          )}
         </div>
       </div>
 
       {username ? (
-        <div className="home__upload">
-          <ImageUpload username={username} />
-        </div>
+        <></>
       ) : (
         <center>
           <h3>Login to upload</h3>
